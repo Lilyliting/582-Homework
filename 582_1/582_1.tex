@@ -1,0 +1,300 @@
+\documentclass{article} 
+\usepackage{geometry}
+\geometry{left=3.5cm, right=3.5cm, top=2.5cm, bottom=2.5cm}
+\usepackage{graphicx} 
+\usepackage{listings}
+\usepackage[round]{natbib}
+\bibliographystyle{plainnat}
+\usepackage{amsmath,amsthm}
+\usepackage{amsmath}
+\usepackage{float}
+\usepackage{mhchem}
+\usepackage{exercise}
+\usepackage{subfigure}
+
+\begin{document}  
+\title{Homework 1}
+\author{Liting Hu}
+
+\maketitle
+
+\section*{Problem 1}
+1. Load and clean data
+\begin{verbatim}
+bx <- read.xls("rollingsales_bronx.xls", perl = "/usr/bin/perl", pattern="BOROUGH")
+bk <- read.xls("rollingsales_brooklyn.xls", perl = "/usr/bin/perl", pattern="BOROUGH")
+mh <- read.xls("rollingsales_manhattan.xls", perl = "/usr/bin/perl", pattern="BOROUGH")
+qn <- read.xls("rollingsales_queens.xls", perl = "/usr/bin/perl", pattern="BOROUGH")
+si <- read.xls("rollingsales_statenisland.xls", perl = "/usr/bin/perl", pattern="BOROUGH")
+#Load in data
+
+cleandata <- function(x) {
+    names(x) <- tolower(names(x))
+    sale.price.n <- as.numeric(gsub("[^[:digit:]]","",x$sale.price))
+    #price should be numeric
+    x$gross.square.feet <- as.numeric(gsub("[^[:digit:]]","",x$gross.square.feet))
+    x$land.square.feet <- as.numeric(gsub("[^[:digit:]]","",x$land.square.feet))
+    #gross square feet and land square feet should be numeric
+    x$sale.date <- as.Date(x$sale.date)
+    #time series
+    x$year.built <- as.numeric(as.character(x$year.built))
+    x <- data.frame(x, sale.price.n)
+    mvc <- length(x$sale.price.n)-count(is.na(x$sale.price.n))[2]
+    if (mvc == 0) message("No missing value")
+    else message("There exists at least one missing value")
+    #to see if there exists missing value
+    x <- subset(x, log(x$sale.price.n) > 5)
+    #delete data whose sale price is too low
+    return(x)
+}
+bx <- cleandata(bx)
+bk <- cleandata(bk)
+mh <- cleandata(mh)
+qn <- cleandata(qn)
+si <- cleandata(si)
+\end{verbatim}
+2. Add building type\\
+We just want to analyze 1, 2, 3 family homes, coops, and condos. So create a new column called building.type in these data frame as follow
+\begin{verbatim}
+addbuildingtype <- function(x) {
+    x$building.type <- "6 Others"
+    x$building.type[grepl("ONE FAMILY",x$building.class.category)] <- "1 One family"
+    x$building.type[grepl("TWO FAMILY",x$building.class.category)] <- "2 Two family"
+    x$building.type[grepl("THREE FAMILY",x$building.class.category)] <- "3 Three family"
+    x$building.type[grepl("COOPS",x$building.class.category)] <- "4 Coops"
+    x$building.type[grepl("CONDOS",x$building.class.category)] <- "5 Condos"
+    x$building.type <- factor(x$building.type)
+    return(x)
+}
+
+bx <- addbuildingtype(bx)
+bk <- addbuildingtype(bk)
+mh <- addbuildingtype(mh)
+qn <- addbuildingtype(qn)
+si <- addbuildingtype(si)
+\end{verbatim}
+3. Combine data
+In order to use ggplot in R, combine all data
+\begin{verbatim}
+aldata <- merge(mh, merge(bk, bx, all = TRUE), all = TRUE)
+aldata <- merge(si, merge(qn, aldata, all = TRUE), all = TRUE)
+aldata$borough <- as.factor(aldata$borough)
+\end{verbatim}
+4. Data analysis \\
+Firstly, draw the histogram of sale price as figure \ref{spd}. \\
+\begin{figure}[htbp] 
+\begin{center} 
+\includegraphics[width=10cm]{spd.png}  
+\caption{Sale price distribution} 
+\label{spd} 
+\end{center} 
+\end{figure}
+Most data are in the first two column. To judge the price more precisely, calculate logs of sale prices and draw the histogram as below. \\
+\begin{figure}[H] 
+\begin{center} 
+\includegraphics[width=10cm]{lisped.png}  
+\caption{Log sale price distribution} 
+\label{lisped} 
+\end{center} 
+\end{figure}
+This graph shows that most sale prices of these property is around \$$e^{13}$ (\$442413) \\
+Than to figure out which patterns have influence on sale prices. \\
+
+\noindent a) Built year\\
+\begin{figure}[H] 
+\begin{center} 
+\includegraphics[width=10cm]{yb_p.png}  
+\caption{Does built year influence price} 
+\label{lisped} 
+\end{center} 
+\end{figure}
+As showed above, built year has no much influence in sales prices of family homes while prices of coops and condos do fluctuate as built year changes. \\
+
+\noindent b) Sale date \\
+\begin{figure}[H] 
+\begin{center} 
+\includegraphics[width=10cm]{sd_p.png}  
+\caption{Does sale date influence price} 
+\label{sd_p} 
+\end{center} 
+\end{figure}
+During this year, the average sale price is steady.  \\
+
+\noindent c) Borough \\
+\begin{figure}[H] 
+\begin{center} 
+\includegraphics[width=10cm]{bo_p.png}  
+\caption{Does borough influence price (1-Manhattan, 2-Bronx, 3-Brooklyn, 4-Queen, 5-Statenisland)} 
+\label{bo_p} 
+\end{center} 
+\end{figure}
+Obviously, price in Manhattan is much higher than other borough while Bronx a little lower than others.\\
+
+\noindent d) Building type \\
+\begin{figure}[H] 
+\begin{center} 
+\includegraphics[width=10cm]{bt_p.png}  
+\caption{Does building type influence price} 
+\label{bt_p} 
+\end{center} 
+\end{figure}
+We can see that in every borough, price of coops are much lower than other type of building. In Manhattan, family homes are more valuable than coops and condos. But in other borough, price of family homes is close to condos'. \\
+
+\noindent e) Gross square feet \\
+\begin{figure}[H] 
+\begin{center} 
+\includegraphics[width=10cm]{gsf_p.png}  
+\caption{Does gross square feet influence price} 
+\label{bo_bt} 
+\end{center} 
+\end{figure}
+Since most data cluster around (2500, 13)(ignore ``others''), there is no obvious relationship between gross square feet and sale price.\\
+
+\noindent By the way, figure \ref{bo_bt} shows the composition of estate in each borough. \\
+\begin{figure}[H] 
+\begin{center} 
+\includegraphics[width=10cm]{bo_bt.png}  
+\caption{Building type percentage in each borough} 
+\label{bo_bt} 
+\end{center} 
+\end{figure}
+We can see that most property on sale in Manhattan is coops and condos while contrarily in Statenisland the most popular property is the house. Maybe this is a factor result in the extra high price homes in Manhattan.\\
+
+\noindent 5. Conclusion \\
+Among these elements, borough, building type and build year affect sale price while sale date and gross square feet have little to do with the price. \\
+
+\section*{Problem 2}
+1. Load data
+\begin{verbatim}
+data1 <- read.csv("nyt1.csv")
+data2 <- read.csv("nyt2.csv")
+data3 <- read.csv("nyt3.csv")
+\end{verbatim}
+2. Create age group and category based on their click behavior.
+\begin{verbatim}
+data1$age_group <- cut(data1$Age, c(-Inf,0,19,29,39,49,59,69,Inf))
+data2$age_group <- cut(data2$Age, c(-Inf,0,19,29,39,49,59,69,Inf))
+data3$age_group <- cut(data3$Age, c(-Inf,0,19,29,39,49,59,69,Inf))
+createcate <- function(x) {
+    x$scode[x$Impressions==0] <- "NoImps"
+    x$scode[x$Impressions >0] <- "Imps"
+    x$scode[x$Clicks >0] <- "Clicks"
+    x$scode <- factor(x$scode)
+    return(x)
+}
+data1 <- createcate(data1)
+data2 <- createcate(data2)
+data3 <- createcate(data3)
+\end{verbatim}
+3. Combine data
+\begin{verbatim}
+data1$Day <- "Day 1"
+data2$Day <- "Day 2"
+data3$Day <- "Day 3"
+data123 <- merge(data3, merge(data1, data2, all = T), all = T)
+\end{verbatim}
+4. Analyze data
+\begin{verbatim}
+summaryBy(Age~age_group, data=data123, FUN=c(length,min,mean,max))
+\end{verbatim}
+\begin{figure}[H] 
+\begin{center} 
+\includegraphics[width=8cm]{su1.png}  
+\caption{Summary by age group} 
+\end{center} 
+\end{figure}
+\begin{verbatim}
+summaryBy(Gender+Signed_In+Impressions+Clicks~age_group, data = data1)
+\end{verbatim}
+\begin{figure}[H] 
+\begin{center} 
+\includegraphics[width=11cm]{su2.png}  
+\caption{Summary by age group} 
+\end{center} 
+\end{figure}
+From these two summaries, we get the information that only signed users have ages and genders. So after that when accessing to analysis about gender and sign status, we should ignore the age group (-Inf, 0]. \\ 
+Then draw the distribution of impression in these three days as follows:
+\begin{figure}[H]
+  \centering
+  \subfigure[Histogram]{
+    \includegraphics[width=6cm]{d1.png}}
+  \hspace{1cm}
+  \subfigure[Boxplot]{
+    \includegraphics[width=6cm]{d11.png}}
+  \caption{Impression distribution of day 1}
+\end{figure}
+\begin{figure}[H]
+  \centering
+  \subfigure[Histogram]{
+    \includegraphics[width=6cm]{d2.png}}
+  \hspace{1cm}
+  \subfigure[Boxplot]{
+    \includegraphics[width=6cm]{d22.png}}
+  \caption{Impression distribution of day 2}
+\end{figure}
+\begin{figure}[H]
+  \centering
+  \subfigure[Histogram]{
+    \includegraphics[width=6cm]{d3.png}}
+  \hspace{1cm}
+  \subfigure[Boxplot]{
+    \includegraphics[width=6cm]{d33.png}}
+  \caption{Impression distribution of day 3}
+\end{figure}
+There is no much difference between these three days' data. \\
+To create click-through-rate, we don't consider clicks if there is no impression. \\
+\begin{verbatim}
+data1$hasimp <- cut(data1$Impressions,c(-Inf,0,Inf))
+summaryBy(Clicks~hasimp, data=data1, FUN=c(length,min,mean,max))
+ggplot(subset(data123, Clicks >0),aes(x=Clicks/Impressions,colour=age_group))+geom_density()
+\end{verbatim}
+\begin{figure}[H] 
+\begin{center} 
+\includegraphics[width=11cm]{thru.png}  
+\caption{Click-through-rate distribution by age group} 
+\end{center} 
+\end{figure}
+All age groups show similar thru rate tendency which reaches its peak at about 0.10 and has several extreme value. \\
+To make comparisons between gender or sign class, create a new column in data frame then draw the plot.  \\
+\begin{verbatim}
+data123$gender_group <- cut(data123$Gender, c(-Inf,0,Inf), labels = c("female", "male"))
+ggplot(subset(data123, Clicks > 0 & Signed_In > 0),aes(x=Clicks/Impressions,colour=gender_group))+geom_density()
+
+data123$sign_group <- cut(data123$Signed_In, c(-Inf,0,Inf), labels = c("not signed in", "signed in"))
+ggplot(subset(data123, Clicks >0),aes(x=Clicks/Impressions,colour=sign_group))+geom_density()
+\end{verbatim}
+\begin{figure}[H] 
+\begin{center} 
+\includegraphics[width=11cm]{ge.png}  
+\caption{Click-through-rate distribution by gender} 
+\end{center} 
+\end{figure}
+\begin{figure}[H] 
+\begin{center} 
+\includegraphics[width=11cm]{sign.png}  
+\caption{Click-through-rate distribution by sign status} 
+\end{center} 
+\end{figure}
+There is no much Click-through-rate difference between gender groups or signed-in groups. \\
+As for impression by gender, \\
+a) All age\\
+\begin{figure}[H] 
+\begin{center} 
+\includegraphics[width=11cm]{allage.png}  
+\caption{Impression by gender at all ages} 
+\label{1}
+\end{center} 
+\end{figure}
+b) Age $<$ 20 \\
+\begin{figure}[H] 
+\begin{center} 
+\includegraphics[width=11cm]{liage.png}  
+\caption{Impression by gender at age $<$ 20} 
+\label{2}
+\end{center} 
+\end{figure}
+From figure \ref{1} and figure \ref{2},  there are much more males than females have impressions on these ads but nor does it at all ages. \\
+5.Conclusion
+Click-through-rate has similar trend across age group, gender, sign status and days. More young male than female have impression.
+
+\end{document}
